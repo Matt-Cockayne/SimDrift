@@ -371,7 +371,7 @@ elif current_idx == 2:
     # Load sample data
     @st.cache_resource
     def load_sample():
-        loader = MedMNISTLoader('pathmnist', download=True)
+        loader = MedMNISTLoader('pathmnist')
         images, _ = loader.get_numpy_data('test')
         return images[:1]
     
@@ -379,7 +379,7 @@ elif current_idx == 2:
     generator = DriftGenerator(seed=42)
     
     # Show different drift types
-    drift_types = ['brightness', 'contrast', 'blur', 'noise', 'motion_blur', 'jpeg_compression']
+    drift_types = ['brightness_shift', 'contrast_reduction', 'blur', 'noise', 'motion_blur', 'jpeg_compression']
     
     cols = st.columns(3)
     
@@ -518,7 +518,7 @@ elif current_idx == 3:
     
     @st.cache_resource
     def load_and_drift():
-        loader = MedMNISTLoader('pathmnist', download=True)
+        loader = MedMNISTLoader('pathmnist')
         images, _ = loader.get_numpy_data('test')
         reference = images[:200]
         
@@ -703,7 +703,7 @@ elif current_idx == 5:
     
     if st.button("Start Exercise", type="primary"):
         with st.spinner("Loading datasets..."):
-            loader = MedMNISTLoader('dermamnist', download=True)
+            loader = MedMNISTLoader('dermamnist')
             images, _ = loader.get_numpy_data('test')
             reference = images[:300]
             
@@ -749,13 +749,30 @@ elif current_idx == 5:
         if st.button("Run Detection", type="primary"):
             detector = DriftDetector()
             
+            # Flatten images for drift detection
+            ref_flat = st.session_state.exercise_ref.reshape(len(st.session_state.exercise_ref), -1)
+            prod_flat = st.session_state.exercise_prod.reshape(len(st.session_state.exercise_prod), -1)
+            
             results = {}
             for method in ['psi', 'ks_test', 'mmd', 'wasserstein']:
-                score, detected = detector.detect_drift(
-                    st.session_state.exercise_ref,
-                    st.session_state.exercise_prod,
+                result = detector.detect_drift(
+                    ref_flat,
+                    prod_flat,
                     method=method
                 )
+                # Extract score and detected from the nested structure
+                method_result = result['methods'].get(method, {})
+                if 'score' in method_result:
+                    score = method_result['score']
+                elif 'scores' in method_result:
+                    score = np.mean(method_result['scores'])
+                elif 'distance' in method_result:
+                    score = method_result['distance']
+                elif 'distances' in method_result:
+                    score = np.mean(method_result['distances'])
+                else:
+                    score = 0.0
+                detected = method_result.get('drift_detected', False)
                 results[method] = {'score': score, 'detected': detected}
             
             st.session_state.exercise_results = results

@@ -72,7 +72,10 @@ class DriftGenerator:
         
         for step in range(n_steps):
             # Linear severity increase
-            severity = (step / (n_steps - 1)) * max_severity
+            if n_steps == 1:
+                severity = max_severity
+            else:
+                severity = (step / (n_steps - 1)) * max_severity
             severity_list.append(severity)
             
             # Get batch for this step

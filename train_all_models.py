@@ -77,27 +77,17 @@ def train_model_for_dataset(
     
     # Load dataset
     print(f"Loading {dataset_name}...")
-    loader = MedMNISTLoader(dataset_name, download=True)
+    loader = MedMNISTLoader(dataset_name)
     
     # Get dataloaders
-    train_loader = loader.get_dataloader(
-        'train',
+    dataloaders = loader.get_dataloaders(
         batch_size=config['batch_size'],
-        shuffle=True,
-        num_workers=4
+        num_workers=4,
+        shuffle_train=True
     )
-    val_loader = loader.get_dataloader(
-        'val',
-        batch_size=config['batch_size'],
-        shuffle=False,
-        num_workers=4
-    )
-    test_loader = loader.get_dataloader(
-        'test',
-        batch_size=config['batch_size'],
-        shuffle=False,
-        num_workers=4
-    )
+    train_loader = dataloaders['train']
+    val_loader = dataloaders['val']
+    test_loader = dataloaders['test']
     
     # Get model
     print(f"Creating {architecture} model...")

@@ -1,7 +1,7 @@
 """
 SimDrift - Enhanced Interactive Visual Dashboard
 
-A stunning, portfolio-quality dashboard for ML drift demonstration.
+A dashboard for ML drift demonstration.
 Features real-time visualization, model comparison, and comprehensive monitoring.
 """
 
@@ -218,7 +218,7 @@ def init_session_state():
 @st.cache_resource
 def load_dataset(dataset_name: str):
     """Load and cache dataset."""
-    loader = MedMNISTLoader(dataset_name=dataset_name, download=True)
+    loader = MedMNISTLoader(dataset_name=dataset_name)
     return loader
 
 
@@ -417,8 +417,32 @@ def plot_confusion_matrix(cm: np.ndarray, class_names: list):
 
 def plot_drift_heatmap(drift_results: dict):
     """Plot drift detection heatmap."""
-    methods = list(drift_results.keys())
-    scores = [drift_results[m].get('score', 0) for m in methods]
+    # Handle nested structure from drift detector
+    if 'methods' in drift_results:
+        methods_data = drift_results['methods']
+    else:
+        methods_data = drift_results
+    
+    methods = list(methods_data.keys())
+    scores = []
+    
+    # Extract scores from different method structures
+    for m in methods:
+        method_result = methods_data[m]
+        if isinstance(method_result, dict):
+            # Try to get score, or use max of scores/statistics
+            if 'score' in method_result:
+                scores.append(method_result['score'])
+            elif 'scores' in method_result:
+                scores.append(np.max(method_result['scores']))
+            elif 'statistics' in method_result:
+                scores.append(np.max(method_result['statistics']))
+            elif 'distances' in method_result:
+                scores.append(np.mean(method_result['distances']))
+            else:
+                scores.append(0)
+        else:
+            scores.append(0)
     
     # Create color based on threshold
     colors = [COLORS['danger'] if s > 0.2 else COLORS['warning'] if s > 0.1 
@@ -603,21 +627,44 @@ def main():
         with col2:
             st.markdown("### Detection Summary")
             
-            for method, result in drift_results.items():
-                if result.get('drift_detected'):
+            # Handle nested structure
+            methods_data = drift_results.get('methods', drift_results)
+            
+            for method, result in methods_data.items():
+                if isinstance(result, dict) and result.get('drift_detected'):
+                    # Get score for display
+                    if 'score' in result:
+                        score = result['score']
+                    elif 'scores' in result:
+                        score = np.max(result['scores'])
+                    elif 'statistics' in result:
+                        score = np.max(result['statistics'])
+                    else:
+                        score = 0
+                    
                     st.markdown(
                         f"<div class='alert-critical'>"
                         f"<strong>DRIFT DETECTED - {method.upper()}</strong><br>"
-                        f"Score: {result.get('score', 0):.4f}<br>"
+                        f"Score: {score:.4f}<br>"
                         f"Status: <strong>DRIFT DETECTED</strong>"
                         f"</div>",
                         unsafe_allow_html=True
                     )
-                else:
+                elif isinstance(result, dict):
+                    # Get score for display
+                    if 'score' in result:
+                        score = result['score']
+                    elif 'scores' in result:
+                        score = np.max(result['scores'])
+                    elif 'statistics' in result:
+                        score = np.max(result['statistics'])
+                    else:
+                        score = 0
+                    
                     st.markdown(
                         f"<div class='alert-success'>"
                         f"<strong>{method.upper()}</strong><br>"
-                        f"Score: {result.get('score', 0):.4f}<br>"
+                        f"Score: {score:.4f}<br>"
                         f"Status: <strong>NORMAL</strong>"
                         f"</div>",
                         unsafe_allow_html=True
@@ -630,35 +677,34 @@ def main():
         
         alert_system = AlertSystem()
         
-        if drift_severity > 0.5:
-            alert_system.add_alert(
-                'drift',
-                severity='critical',
-                message=f"Severe drift detected (severity: {drift_severity:.0%})",
-                metric_value=drift_score,
-                threshold=0.2,
-                recommendations=[
+        # Check drift alerts using the actual drift detection results
+        alerts = alert_system.check_drift_alert(drift_results)
+        
+        # Add custom alerts based on severity
+        if drift_severity > 0.5 and not alerts:
+            # Manual alert for high severity
+            alerts.append({
+                'type': 'drift',
+                'severity': 'critical',
+                'message': f"Severe drift detected (severity: {drift_severity:.0%})",
+                'recommendations': [
                     "URGENT: Consider model retraining immediately",
                     "Evaluate current predictions for reliability",
                     "Implement temporary fallback mechanisms",
                     "Investigate root cause of drift"
                 ]
-            )
-        elif drift_severity > 0.3:
-            alert_system.add_alert(
-                'drift',
-                severity='warning',
-                message=f"Moderate drift detected (severity: {drift_severity:.0%})",
-                metric_value=drift_score,
-                threshold=0.1,
-                recommendations=[
+            })
+        elif drift_severity > 0.3 and not alerts:
+            alerts.append({
+                'type': 'drift',
+                'severity': 'warning',
+                'message': f"Moderate drift detected (severity: {drift_severity:.0%})",
+                'recommendations': [
                     "Monitor predictions closely",
                     "Collect new data for potential retraining",
                     "Analyze drift sources"
                 ]
-            )
-        
-        alerts = alert_system.get_active_alerts()
+            })
         
         if alerts:
             for alert in alerts:
@@ -669,7 +715,7 @@ def main():
                     f"<div class='{severity_class}'>"
                     f"{icon} <strong>{alert['severity'].upper()}</strong>: {alert['message']}<br><br>"
                     f"<strong>Recommended Actions:</strong><br>"
-                    + "<br>".join(f"  {r}" for r in alert['recommendations'])
+                    + "<br>".join(f"  {r}" for r in alert.get('recommendations', []))
                     + f"</div>",
                     unsafe_allow_html=True
                 )

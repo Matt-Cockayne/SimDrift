@@ -59,7 +59,7 @@ if 'lab_images' not in st.session_state:
 
 @st.cache_resource
 def load_dataset(dataset_name: str):
-    return MedMNISTLoader(dataset_name=dataset_name, download=True)
+    return MedMNISTLoader(dataset_name=dataset_name)
 
 st.title("Drift Lab")
 st.markdown("### Experiment with custom drift scenarios")
