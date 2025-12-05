@@ -1,0 +1,62 @@
+{
+  "architecture": "simple_cnn",
+  "dataset": "retinamnist",
+  "n_classes": 5,
+  "training": {
+    "best_epoch": 6,
+    "best_val_acc": 0.5833333333333334,
+    "total_time_minutes": 0.05882628361384074,
+    "final_train_acc": 0.562962962962963
+  },
+  "test_performance": {
+    "accuracy": 0.52,
+    "precision": 0.4952800444236615,
+    "recall": 0.52,
+    "f1_score": 0.4887525474123363,
+    "ece": 0.07516475453972814,
+    "mce": 0.35639454921086633,
+    "auc": 0.7639823373696792,
+    "confusion_matrix": [
+      [
+        134,
+        2,
+        15,
+        23,
+        0
+      ],
+      [
+        16,
+        3,
+        13,
+        14,
+        0
+      ],
+      [
+        16,
+        5,
+        26,
+        45,
+        0
+      ],
+      [
+        14,
+        1,
+        8,
+        45,
+        0
+      ],
+      [
+        2,
+        1,
+        3,
+        14,
+        0
+      ]
+    ]
+  },
+  "model_info": {
+    "parameters": 813733,
+    "device": "cuda"
+  },
+  "timestamp": "2025-12-04T16:35:43.886200"
+}

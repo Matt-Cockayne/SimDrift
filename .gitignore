@@ -31,16 +31,6 @@ ENV/
 .ipynb_checkpoints
 *.ipynb_checkpoints/
 
-# Model checkpoints and zoo
-model_zoo/
-models/pretrained/
-*.pth
-*.pt
-*.ckpt
-*.h5
-*.pb
-*.onnx
-
 # Data
 data/medmnist/
 *.npy

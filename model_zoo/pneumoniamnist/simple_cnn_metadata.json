@@ -1,0 +1,35 @@
+{
+  "architecture": "simple_cnn",
+  "dataset": "pneumoniamnist",
+  "n_classes": 2,
+  "training": {
+    "best_epoch": 26,
+    "best_val_acc": 0.982824427480916,
+    "total_time_minutes": 0.21842861970265706,
+    "final_train_acc": 1.0
+  },
+  "test_performance": {
+    "accuracy": 0.8685897435897436,
+    "precision": 0.8914194915254239,
+    "recall": 0.8685897435897436,
+    "f1_score": 0.8608820311842564,
+    "ece": 0.12302278211483589,
+    "mce": 0.249596381187439,
+    "auc": null,
+    "confusion_matrix": [
+      [
+        152,
+        82
+      ],
+      [
+        0,
+        390
+      ]
+    ]
+  },
+  "model_info": {
+    "parameters": 812386,
+    "device": "cuda"
+  },
+  "timestamp": "2025-12-05T13:50:56.424473"
+}
