@@ -239,9 +239,9 @@ def init_session_state():
         'drift_severity': 0.5,
         'current_drift_type': 'brightness',
         'model_manager': None,
-        'drift_generator': DriftGenerator(seed=42),
-        'drift_detector': DriftDetector(),
-        'alert_system': AlertSystem(),
+        'drift_generator': None,
+        'drift_detector': None,
+        'alert_system': None,
         'original_images': None,
         'original_labels': None,
         'drifted_images': None,
@@ -251,6 +251,14 @@ def init_session_state():
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+    
+    # Lazy-load heavy objects
+    if st.session_state.drift_generator is None:
+        st.session_state.drift_generator = DriftGenerator(seed=42)
+    if st.session_state.drift_detector is None:
+        st.session_state.drift_detector = DriftDetector()
+    if st.session_state.alert_system is None:
+        st.session_state.alert_system = AlertSystem()
 
 
 @st.cache_resource
