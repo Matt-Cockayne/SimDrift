@@ -19,7 +19,7 @@ from data.drift_generators import DriftGenerator
 
 st.set_page_config(
     page_title="SimDrift - Drift Lab",
-    page_icon="📊",
+    page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -41,6 +41,61 @@ st.markdown(f"""
         background-color: {COLORS['background']};
         color: {COLORS['text']};
     }}
+    .hero-header {{
+        text-align: center;
+        padding: 3rem 2rem;
+        background: linear-gradient(135deg, 
+            {COLORS['primary']} 0%, 
+            {COLORS['secondary']} 50%, 
+            #ec4899 100%);
+        background-size: 200% 200%;
+        animation: gradientShift 8s ease infinite;
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.3);
+    }}
+    
+    .hero-header::before {{
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }}
+    
+    @keyframes gradientShift {{
+        0%, 100% {{ background-position: 0% 50%; }}
+        50% {{ background-position: 100% 50%; }}
+    }}
+    
+    @keyframes rotate {{
+        from {{ transform: rotate(0deg); }}
+        to {{ transform: rotate(360deg); }}
+    }}
+    
+    .hero-title {{
+        font-size: 3rem;
+        font-weight: bold;
+        color: white;
+        margin: 0;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+        position: relative;
+        z-index: 1;
+        letter-spacing: -0.02em;
+    }}
+    
+    .hero-subtitle {{
+        font-size: 1.1rem;
+        color: rgba(255,255,255,0.95);
+        position: relative;
+        z-index: 1;
+        margin-top: 0.5rem;
+    }}
     .drift-card {{
         background: linear-gradient(135deg, {COLORS['surface']}, {COLORS['background']});
         border: 1px solid rgba(99, 102, 241, 0.3);
@@ -61,8 +116,15 @@ if 'lab_images' not in st.session_state:
 def load_dataset(dataset_name: str):
     return MedMNISTLoader(dataset_name=dataset_name)
 
-st.title("Drift Lab")
-st.markdown("### Experiment with custom drift scenarios")
+st.markdown("""
+<div class="hero-header">
+    <h1 class="hero-title">⚡ Drift Lab</h1>
+    <p class="hero-subtitle">
+        Experiment with Custom Drift Scenarios
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
 st.markdown("""
 Combine multiple drift types to create realistic production scenarios or explore edge cases.
 Design, preview, and save custom drift configurations.
@@ -362,3 +424,19 @@ else:
     3. **Education**: Demonstrate drift concepts interactively
     4. **Research**: Explore drift interactions and dependencies
     """)
+
+# Footer
+st.markdown("---")
+st.markdown(f"""
+<div style="text-align: center; padding: 1.5rem; background: rgba(30, 41, 59, 0.5); border-radius: 0.5rem; margin-top: 2rem;">
+    <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">
+        Developed by <strong>Matthew Cockayne</strong> | PhD Researcher, Keele University
+    </p>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.7; font-size: 0.85rem;">
+        <a href="https://matt-cockayne.github.io" target="_blank" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">Portfolio</a> |
+        <a href="https://github.com/Matt-Cockayne" target="_blank" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">GitHub</a> |
+        <a href="https://www.linkedin.com/in/matthew-cockayne-193659199" target="_blank" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">LinkedIn</a> |
+        <a href="mailto:matthewcockayne2@gmail.com" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">Contact</a>
+    </p>
+</div>
+""", unsafe_allow_html=True)

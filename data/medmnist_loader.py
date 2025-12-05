@@ -24,6 +24,7 @@ class MedMNISTLoader:
         'retinamnist': medmnist.RetinaMNIST,
         'bloodmnist': medmnist.BloodMNIST,
         'tissuemnist': medmnist.TissueMNIST,
+        'pneumoniamnist': medmnist.PneumoniaMNIST,
         'organamnist': medmnist.OrganAMNIST,
         'organcmnist': medmnist.OrganCMNIST,
         'organsmnist': medmnist.OrganSMNIST,
@@ -141,12 +142,14 @@ class MedMNISTLoader:
         }
         return dataloaders
     
-    def get_numpy_data(self, split: str = 'test') -> Tuple[np.ndarray, np.ndarray]:
+    def get_numpy_data(self, split: str = 'test', limit: Optional[int] = None, offset: int = 0) -> Tuple[np.ndarray, np.ndarray]:
         """
         Get raw numpy arrays without transforms (useful for drift simulation).
         
         Args:
             split: Dataset split ('train', 'val', or 'test')
+            limit: Maximum number of samples to load (None = load all)
+            offset: Starting index for loading samples
             
         Returns:
             Tuple of (images, labels) as numpy arrays
@@ -164,7 +167,12 @@ class MedMNISTLoader:
         images = []
         labels = []
         
-        for img, label in dataset:
+        # Calculate range to load
+        start_idx = offset
+        end_idx = len(dataset) if limit is None else min(offset + limit, len(dataset))
+        
+        for idx in range(start_idx, end_idx):
+            img, label = dataset[idx]
             images.append(np.array(img))
             labels.append(label)
         

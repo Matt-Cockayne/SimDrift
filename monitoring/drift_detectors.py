@@ -200,9 +200,11 @@ class DriftDetector:
             ref_props = (ref_counts + epsilon) / (ref_counts.sum() + epsilon * n_bins)
             prod_props = (prod_counts + epsilon) / (prod_counts.sum() + epsilon * n_bins)
             
-            # Calculate PSI
+            # Calculate PSI using the standard formula
+            # PSI = sum((actual% - expected%) * ln(actual% / expected%))
             psi = np.sum((prod_props - ref_props) * np.log(prod_props / ref_props))
-            psi_scores[i] = psi
+            # Take absolute value since PSI should be non-negative
+            psi_scores[i] = np.abs(psi)
         
         drift_detected = np.any(psi_scores > self.threshold_psi)
         

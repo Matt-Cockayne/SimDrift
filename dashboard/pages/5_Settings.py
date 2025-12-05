@@ -14,7 +14,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 st.set_page_config(
     page_title="SimDrift - Settings",
-    page_icon="📊",
+    page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -43,7 +43,64 @@ st.markdown(f"""
         padding: 1.5rem;
         margin: 1rem 0;
     }}
+    .enhanced-hero {{
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+        background-size: 200% 200%;
+        animation: gradientShift 8s ease infinite;
+        border-radius: 1rem;
+        padding: 3rem 2rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.3);
+    }}
+    .enhanced-hero::before {{
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }}
+    .enhanced-hero h1 {{
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.02em;
+    }}
+    .enhanced-hero p {{
+        position: relative;
+        z-index: 1;
+        margin: 1rem 0 0 0;
+        font-size: 1.1rem;
+        color: rgba(255, 255, 255, 0.95);
+        font-weight: 400;
+    }}
+    @keyframes gradientShift {{
+        0%, 100% {{ background-position: 0% 50%; }}
+        50% {{ background-position: 100% 50%; }}
+    }}
+    @keyframes rotate {{
+        from {{ transform: rotate(0deg); }}
+        to {{ transform: rotate(360deg); }}
+    }}
 </style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="enhanced-hero">
+    <h1>⚙️ Settings</h1>
+    <p>Configure drift detection parameters and system preferences</p>
+</div>
 """, unsafe_allow_html=True)
 
 # Initialize default settings
@@ -106,7 +163,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 ])
 
 with tab1:
-    st.markdown("### 🔬 Drift Detection Configuration")
+    st.markdown("### 📊 Drift Detection Configuration")
     
     col1, col2 = st.columns(2)
     
@@ -280,7 +337,7 @@ with tab2:
             )
 
 with tab3:
-    st.markdown("### 🎨 Visualization Preferences")
+    st.markdown("### 📈 Visualization Preferences")
     
     col1, col2 = st.columns(2)
     
@@ -340,7 +397,7 @@ with tab3:
         st.session_state.settings['visualization']['animation_speed'] = animation_speed
 
 with tab4:
-    st.markdown("### 🏛️ Model Zoo Configuration")
+    st.markdown("### 📁 Model Zoo Configuration")
     
     col1, col2 = st.columns(2)
     
@@ -496,3 +553,19 @@ with col2:
         - Theme: {st.session_state.settings['visualization']['theme'].title()}
         - Model Path: {st.session_state.settings['model_zoo']['path']}
         """)
+
+# Footer
+st.markdown("---")
+st.markdown(f"""
+<div style="text-align: center; padding: 1.5rem; background: rgba(30, 41, 59, 0.5); border-radius: 0.5rem; margin-top: 2rem;">
+    <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">
+        Developed by <strong>Matthew Cockayne</strong> | PhD Researcher, Keele University
+    </p>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.7; font-size: 0.85rem;">
+        <a href="https://matt-cockayne.github.io" target="_blank" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">Portfolio</a> |
+        <a href="https://github.com/Matt-Cockayne" target="_blank" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">GitHub</a> |
+        <a href="https://www.linkedin.com/in/matthew-cockayne-193659199" target="_blank" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">LinkedIn</a> |
+        <a href="mailto:matthewcockayne2@gmail.com" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">Contact</a>
+    </p>
+</div>
+""", unsafe_allow_html=True)

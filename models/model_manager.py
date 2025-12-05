@@ -138,9 +138,38 @@ class ModelManager:
         metadata = self.get_model_metadata(dataset, architecture)
         n_classes = metadata['n_classes']
         
-        # Infer number of channels from dataset name
-        grayscale_datasets = ['pneumoniamnist', 'breastmnist']
-        n_channels = 1 if dataset in grayscale_datasets else 3
+        # Infer number of channels from the checkpoint itself
+        # Look for the first/stem conv layer to determine input channels
+        if 'model_state_dict' in checkpoint:
+            state_dict = checkpoint['model_state_dict']
+            
+            # Try to find the stem/first conv layer by common naming patterns
+            stem_keys = [
+                'conv_stem.weight',  # EfficientNet
+                'conv1.weight',      # ResNet
+                'conv1.conv.weight', # Some ResNet variants
+                'features.0.0.weight',  # SimpleCNN and others
+                'features.conv0.weight',
+            ]
+            
+            n_channels = None
+            for key in stem_keys:
+                if key in state_dict:
+                    # Shape is [out_channels, in_channels, H, W]
+                    n_channels = state_dict[key].shape[1]
+                    break
+            
+            # Fallback: find any conv layer with smallest number of input channels
+            if n_channels is None:
+                conv_keys = [k for k in state_dict.keys() if 'weight' in k and len(state_dict[k].shape) == 4]
+                if conv_keys:
+                    # Get the layer with minimum input channels (likely the first layer)
+                    min_channels_key = min(conv_keys, key=lambda k: state_dict[k].shape[1])
+                    n_channels = state_dict[min_channels_key].shape[1]
+                else:
+                    n_channels = 3
+        else:
+            n_channels = 3
         
         # Create model
         model = get_model(

@@ -151,9 +151,14 @@ class DriftGenerator:
         self.drift_history.append(metadata)
         
         if return_steps:
-            # Return with temporal structure
-            drifted_images = np.array(drifted_images_list)
-            drifted_labels = np.array(drifted_labels_list)
+            # Return with temporal structure - use stack to ensure same shape
+            try:
+                drifted_images = np.stack(drifted_images_list, axis=0)
+                drifted_labels = np.stack(drifted_labels_list, axis=0)
+            except ValueError:
+                # Fallback if shapes still don't match
+                drifted_images = np.array(drifted_images_list, dtype=object)
+                drifted_labels = np.array(drifted_labels_list, dtype=object)
         
         return drifted_images, drifted_labels, metadata
     
@@ -415,18 +420,30 @@ class DriftGenerator:
     def _apply_contrast_reduction(self, images: np.ndarray, severity: float) -> np.ndarray:
         """Reduce contrast."""
         factor = 1.0 - severity * 0.5
-        mean = images.mean(axis=(1, 2, 3), keepdims=True)
+        # Handle both 3D and 4D arrays
+        if images.ndim == 3:
+            mean = images.mean(axis=(1, 2), keepdims=True)
+        else:
+            mean = images.mean(axis=(1, 2, 3), keepdims=True)
         return np.clip((images - mean) * factor + mean, 0, 255).astype(images.dtype)
     
     def _apply_blur(self, images: np.ndarray, severity: float) -> np.ndarray:
         """Apply Gaussian blur."""
         sigma = severity * 3.0
         blurred = np.zeros_like(images)
-        for i in range(len(images)):
-            for c in range(images.shape[-1]):
-                blurred[i, :, :, c] = ndimage.gaussian_filter(
-                    images[i, :, :, c], sigma=sigma
-                )
+        
+        # Handle both 3D (N, H, W) and 4D (N, H, W, C) arrays
+        if images.ndim == 3:
+            # Grayscale without channel dimension
+            for i in range(len(images)):
+                blurred[i] = ndimage.gaussian_filter(images[i], sigma=sigma)
+        else:
+            # RGB or grayscale with channel dimension
+            for i in range(len(images)):
+                for c in range(images.shape[-1]):
+                    blurred[i, :, :, c] = ndimage.gaussian_filter(
+                        images[i, :, :, c], sigma=sigma
+                    )
         return blurred.astype(images.dtype)
     
     def _apply_noise(self, images: np.ndarray, severity: float) -> np.ndarray:
@@ -481,11 +498,17 @@ class DriftGenerator:
         # Crop/zoom simulation
         crop_amount = int(severity * images.shape[1] * 0.1)
         if crop_amount > 0:
-            images = images[:, crop_amount:-crop_amount, crop_amount:-crop_amount, :]
+            if images.ndim == 3:
+                images = images[:, crop_amount:-crop_amount, crop_amount:-crop_amount]
+            else:
+                images = images[:, crop_amount:-crop_amount, crop_amount:-crop_amount, :]
             # Resize back to original (simple repeat for now)
             from scipy.ndimage import zoom
             zoom_factor = images.shape[1] / (images.shape[1] - 2 * crop_amount)
-            images = zoom(images, (1, zoom_factor, zoom_factor, 1), order=1)
+            if images.ndim == 3:
+                images = zoom(images, (1, zoom_factor, zoom_factor), order=1)
+            else:
+                images = zoom(images, (1, zoom_factor, zoom_factor, 1), order=1)
         return images.astype(np.uint8)
     
     def _apply_preprocessing_change(self, images: np.ndarray, severity: float) -> np.ndarray:
@@ -513,11 +536,17 @@ class DriftGenerator:
         kernel = kernel / kernel_size
         
         blurred = np.zeros_like(images)
-        for i in range(len(images)):
-            for c in range(images.shape[-1]):
-                blurred[i, :, :, c] = cv2.filter2D(
-                    images[i, :, :, c], -1, kernel
-                )
+        
+        # Handle both 3D and 4D arrays
+        if images.ndim == 3:
+            for i in range(len(images)):
+                blurred[i] = cv2.filter2D(images[i], -1, kernel)
+        else:
+            for i in range(len(images)):
+                for c in range(images.shape[-1]):
+                    blurred[i, :, :, c] = cv2.filter2D(
+                        images[i, :, :, c], -1, kernel
+                    )
         return blurred.astype(images.dtype)
     
     def _apply_jpeg_compression(self, images: np.ndarray, severity: float) -> np.ndarray:
@@ -529,8 +558,14 @@ class DriftGenerator:
         for i in range(len(images)):
             # Encode and decode as JPEG
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
-            _, encoded = cv2.imencode('.jpg', images[i], encode_param)
-            compressed[i] = cv2.imdecode(encoded, cv2.IMREAD_UNCHANGED)
+            # Handle 2D grayscale vs 3D color
+            img = images[i]
+            _, encoded = cv2.imencode('.jpg', img, encode_param)
+            decoded = cv2.imdecode(encoded, cv2.IMREAD_UNCHANGED)
+            # Ensure shape matches
+            if images.ndim == 3 and decoded.ndim == 3:
+                decoded = decoded[:, :, 0]  # Take first channel if grayscale was expanded
+            compressed[i] = decoded
         
         return compressed.astype(images.dtype)
     
@@ -549,7 +584,10 @@ class DriftGenerator:
                 y = np.random.randint(0, h - occ_size + 1)
                 
                 # Black rectangle occlusion
-                occluded[i, y:y+occ_size, x:x+occ_size, :] = 0
+                if images.ndim == 3:
+                    occluded[i, y:y+occ_size, x:x+occ_size] = 0
+                else:
+                    occluded[i, y:y+occ_size, x:x+occ_size, :] = 0
         
         return occluded
     
@@ -565,7 +603,10 @@ class DriftGenerator:
         if crop_h > 0 and crop_w > 0:
             zoomed = np.zeros_like(images)
             for i in range(len(images)):
-                cropped = images[i, crop_h:-crop_h, crop_w:-crop_w, :]
+                if images.ndim == 3:
+                    cropped = images[i, crop_h:-crop_h, crop_w:-crop_w]
+                else:
+                    cropped = images[i, crop_h:-crop_h, crop_w:-crop_w, :]
                 zoomed[i] = cv2.resize(cropped, (w, h))
             return zoomed.astype(images.dtype)
         
@@ -704,7 +745,6 @@ class DriftGenerator:
             'contrast': 'Gradual contrast reduction',
             'blur': 'Gaussian blur (lens degradation)',
             'noise': 'Gaussian noise increase (electronic noise)',
-            'demographic': 'Age/population distribution shift',
             
             # Enhanced visual drift types
             'motion_blur': 'Motion blur (patient movement)',

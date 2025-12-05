@@ -39,7 +39,8 @@ class ModelTrainer:
         architecture: str,
         dataset_name: str,
         device: Optional[str] = None,
-        output_dir: Optional[str] = None
+        output_dir: Optional[str] = None,
+        task: str = 'multi-class'
     ):
         """
         Initialize trainer.
@@ -50,10 +51,12 @@ class ModelTrainer:
             dataset_name: Name of the dataset
             device: Device to train on (auto-detected if None)
             output_dir: Directory to save outputs
+            task: Task type ('multi-class' or 'multi-label')
         """
         self.model = model
         self.architecture = architecture
         self.dataset_name = dataset_name
+        self.task = task
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         self.model.to(self.device)
         
@@ -102,7 +105,12 @@ class ModelTrainer:
             Training history dictionary
         """
         # Setup
-        criterion = nn.CrossEntropyLoss()
+        # Use appropriate loss function based on task type
+        if 'multi-label' in self.task:
+            criterion = nn.BCEWithLogitsLoss()
+        else:
+            criterion = nn.CrossEntropyLoss()
+        
         optimizer = torch.optim.AdamW(
             self.model.parameters(),
             lr=learning_rate,
@@ -198,7 +206,11 @@ class ModelTrainer:
         
         for images, labels in iterator:
             images = images.to(self.device)
-            labels = labels.squeeze().long().to(self.device)
+            # Handle multi-label vs multi-class differently
+            if 'multi-label' in self.task:
+                labels = labels.float().to(self.device)
+            else:
+                labels = labels.squeeze().long().to(self.device)
             
             # Forward pass
             optimizer.zero_grad()
@@ -211,8 +223,16 @@ class ModelTrainer:
             
             # Statistics
             total_loss += loss.item() * images.size(0)
-            _, predicted = outputs.max(1)
-            correct += predicted.eq(labels).sum().item()
+            
+            if 'multi-label' in self.task:
+                # For multi-label, use threshold 0.5 on sigmoid outputs
+                predicted = (torch.sigmoid(outputs) > 0.5).float()
+                # Exact match accuracy
+                correct += (predicted == labels).all(dim=1).sum().item()
+            else:
+                _, predicted = outputs.max(1)
+                correct += predicted.eq(labels).sum().item()
+            
             total += labels.size(0)
             
             if verbose:
@@ -240,14 +260,26 @@ class ModelTrainer:
         with torch.no_grad():
             for images, labels in val_loader:
                 images = images.to(self.device)
-                labels = labels.squeeze().long().to(self.device)
+                # Handle multi-label vs multi-class differently
+                if 'multi-label' in self.task:
+                    labels = labels.float().to(self.device)
+                else:
+                    labels = labels.squeeze().long().to(self.device)
                 
                 outputs = self.model(images)
                 loss = criterion(outputs, labels)
                 
                 total_loss += loss.item() * images.size(0)
-                _, predicted = outputs.max(1)
-                correct += predicted.eq(labels).sum().item()
+                
+                if 'multi-label' in self.task:
+                    # For multi-label, use threshold 0.5 on sigmoid outputs
+                    predicted = (torch.sigmoid(outputs) > 0.5).float()
+                    # Exact match accuracy
+                    correct += (predicted == labels).all(dim=1).sum().item()
+                else:
+                    _, predicted = outputs.max(1)
+                    correct += predicted.eq(labels).sum().item()
+                
                 total += labels.size(0)
         
         avg_loss = total_loss / total
@@ -280,11 +312,17 @@ class ModelTrainer:
         with torch.no_grad():
             for images, labels in tqdm(test_loader, desc='Evaluating'):
                 images = images.to(self.device)
-                labels = labels.squeeze().long()
                 
-                outputs = self.model(images)
-                probs = F.softmax(outputs, dim=1)
-                _, predicted = outputs.max(1)
+                if 'multi-label' in self.task:
+                    labels = labels.float()
+                    outputs = self.model(images)
+                    probs = torch.sigmoid(outputs)
+                    predicted = (probs > 0.5).float()
+                else:
+                    labels = labels.squeeze().long()
+                    outputs = self.model(images)
+                    probs = F.softmax(outputs, dim=1)
+                    _, predicted = outputs.max(1)
                 
                 all_preds.extend(predicted.cpu().numpy())
                 all_labels.extend(labels.numpy())
@@ -312,24 +350,48 @@ class ModelTrainer:
         y_probs: np.ndarray
     ) -> Dict:
         """Calculate comprehensive metrics."""
-        # Basic metrics
-        accuracy = accuracy_score(y_true, y_pred)
-        precision, recall, f1, _ = precision_recall_fscore_support(
-            y_true, y_pred, average='weighted', zero_division=0
-        )
-        
-        # Confusion matrix
-        cm = confusion_matrix(y_true, y_pred)
-        
-        # Calibration metrics (Expected Calibration Error)
-        ece = self._calculate_ece(y_true, y_probs)
-        mce = self._calculate_mce(y_true, y_probs)
-        
-        # Try to calculate AUC if multi-class
-        try:
-            auc = roc_auc_score(y_true, y_probs, multi_class='ovr', average='weighted')
-        except:
-            auc = None
+        if 'multi-label' in self.task:
+            # Multi-label metrics
+            # Exact match accuracy (all labels correct)
+            accuracy = accuracy_score(y_true, y_pred)
+            
+            # Per-label metrics, then average
+            precision, recall, f1, _ = precision_recall_fscore_support(
+                y_true, y_pred, average='samples', zero_division=0
+            )
+            
+            # For multi-label, we can't use standard confusion matrix
+            # Just return None or skip it
+            cm = None
+            
+            # No ECE/MCE for multi-label (different interpretation)
+            ece = 0.0
+            mce = 0.0
+            
+            # Try to calculate AUC for multi-label
+            try:
+                auc = roc_auc_score(y_true, y_probs, average='samples')
+            except:
+                auc = None
+        else:
+            # Multi-class metrics
+            accuracy = accuracy_score(y_true, y_pred)
+            precision, recall, f1, _ = precision_recall_fscore_support(
+                y_true, y_pred, average='weighted', zero_division=0
+            )
+            
+            # Confusion matrix
+            cm = confusion_matrix(y_true, y_pred)
+            
+            # Calibration metrics (Expected Calibration Error)
+            ece = self._calculate_ece(y_true, y_probs)
+            mce = self._calculate_mce(y_true, y_probs)
+            
+            # Try to calculate AUC if multi-class
+            try:
+                auc = roc_auc_score(y_true, y_probs, multi_class='ovr', average='weighted')
+            except:
+                auc = None
         
         return {
             'accuracy': float(accuracy),
@@ -339,7 +401,7 @@ class ModelTrainer:
             'ece': float(ece),
             'mce': float(mce),
             'auc': float(auc) if auc is not None else None,
-            'confusion_matrix': cm.tolist()
+            'confusion_matrix': cm.tolist() if cm is not None else None
         }
     
     def _calculate_ece(self, y_true: np.ndarray, y_probs: np.ndarray, n_bins: int = 10) -> float:
@@ -395,11 +457,13 @@ class ModelTrainer:
         # 1. Training curves
         self._plot_training_curves(vis_dir)
         
-        # 2. Confusion matrix
-        self._plot_confusion_matrix(metrics['confusion_matrix'], class_names, vis_dir)
+        # 2. Confusion matrix (only for multi-class)
+        if 'multi-label' not in self.task and metrics['confusion_matrix'] is not None:
+            self._plot_confusion_matrix(metrics['confusion_matrix'], class_names, vis_dir)
         
-        # 3. Calibration plot
-        self._plot_calibration(y_true, y_probs, vis_dir)
+        # 3. Calibration plot (only for multi-class)
+        if 'multi-label' not in self.task:
+            self._plot_calibration(y_true, y_probs, vis_dir)
         
         print(f"✓ Visualizations saved to {vis_dir}")
     

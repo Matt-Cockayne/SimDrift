@@ -15,7 +15,7 @@ from models.model_manager import ModelManager
 
 st.set_page_config(
     page_title="Model Zoo - SimDrift",
-    page_icon="📊",
+    page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -40,10 +40,58 @@ st.markdown(f"""
     }}
     .hero-header {{
         text-align: center;
-        padding: 2rem 0;
-        background: linear-gradient(135deg, {COLORS['primary']}, {COLORS['secondary']});
+        padding: 3rem 2rem;
+        background: linear-gradient(135deg, 
+            {COLORS['primary']} 0%, 
+            {COLORS['secondary']} 50%, 
+            #ec4899 100%);
+        background-size: 200% 200%;
+        animation: gradientShift 8s ease infinite;
         border-radius: 1rem;
         margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.3);
+    }}
+    
+    .hero-header::before {{
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }}
+    
+    @keyframes gradientShift {{
+        0%, 100% {{ background-position: 0% 50%; }}
+        50% {{ background-position: 100% 50%; }}
+    }}
+    
+    @keyframes rotate {{
+        from {{ transform: rotate(0deg); }}
+        to {{ transform: rotate(360deg); }}
+    }}
+    
+    .hero-title {{
+        font-size: 3rem;
+        font-weight: bold;
+        color: white;
+        margin: 0;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+        position: relative;
+        z-index: 1;
+        letter-spacing: -0.02em;
+    }}
+    
+    .hero-subtitle {{
+        font-size: 1.1rem;
+        color: rgba(255,255,255,0.95);
+        position: relative;
+        z-index: 1;
+        margin-top: 0.5rem;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -51,8 +99,8 @@ st.markdown(f"""
 # Header
 st.markdown("""
 <div class="hero-header">
-    <h1 style="color: white; margin: 0;">Model Zoo</h1>
-    <p style="color: rgba(255,255,255,0.9); margin-top: 0.5rem;">
+    <h1 class="hero-title">📊 Model Zoo</h1>
+    <p class="hero-subtitle">
         Explore and Compare Pre-trained Models
     </p>
 </div>
@@ -209,7 +257,7 @@ with tab2:
         st.plotly_chart(fig4, use_container_width=True)
 
 with tab3:
-    st.markdown("## 🔍 Model Details")
+    st.markdown("## 📋 Model Details")
     
     # Select model
     col1, col2 = st.columns(2)
@@ -369,3 +417,19 @@ with tab4:
             
         except Exception as e:
             st.error(f"Error comparing models: {e}")
+
+# Footer
+st.markdown("---")
+st.markdown(f"""
+<div style="text-align: center; padding: 1.5rem; background: rgba(30, 41, 59, 0.5); border-radius: 0.5rem; margin-top: 2rem;">
+    <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">
+        Developed by <strong>Matthew Cockayne</strong> | PhD Researcher, Keele University
+    </p>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.7; font-size: 0.85rem;">
+        <a href="https://matt-cockayne.github.io" target="_blank" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">Portfolio</a> |
+        <a href="https://github.com/Matt-Cockayne" target="_blank" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">GitHub</a> |
+        <a href="https://www.linkedin.com/in/matthew-cockayne-193659199" target="_blank" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">LinkedIn</a> |
+        <a href="mailto:matthewcockayne2@gmail.com" style="color: {COLORS['primary']}; text-decoration: none; margin: 0 0.5rem;">Contact</a>
+    </p>
+</div>
+""", unsafe_allow_html=True)

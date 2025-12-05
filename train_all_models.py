@@ -24,12 +24,12 @@ from models.training.trainer import ModelTrainer
 DATASETS = [
     'pathmnist',      # Pathology (9 classes)
     'dermamnist',     # Dermatology (7 classes)
-    'octmnist',       # OCT (4 classes)
-    'pneumoniamnist', # Pneumonia (2 classes)
     'retinamnist',    # Retina (5 classes)
-    'breastmnist',    # Breast (2 classes)
     'bloodmnist',     # Blood (8 classes)
     'tissuemnist',    # Tissue (8 classes)
+    'organamnist',    # Organ (11 classes)
+    'organcmnist',    # Organ C (11 classes)
+    'organsmnist',    # Organ S (11 classes)
 ]
 
 # Architecture configurations
@@ -113,7 +113,8 @@ def train_model_for_dataset(
         architecture=architecture,
         dataset_name=dataset_name,
         device=device,
-        output_dir=str(model_output_dir)
+        output_dir=str(model_output_dir),
+        task=loader.info['task']  # Pass task type (multi-class or multi-label)
     )
     
     # Train
