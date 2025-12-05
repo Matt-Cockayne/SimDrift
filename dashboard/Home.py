@@ -1020,22 +1020,36 @@ def main():
         # Run button
         run_simulation = st.button("Run Simulation", use_container_width=True)
     
-    # Main content area
-    if run_simulation or st.session_state.data_loaded:
+    # Main content area - only run simulation when button is clicked
+    if run_simulation:
         # Store sidebar selections in session state
         st.session_state.drift_severity = drift_severity
         st.session_state.current_drift_type = drift_type
         
-        # Load data
+        # Load data with technical progress indicator
         if not st.session_state.data_loaded or st.session_state.dataset_name != dataset_name:
-            with st.spinner(f"Loading {dataset_name}..."):
+            loading_placeholder = st.empty()
+            with loading_placeholder.container():
+                st.markdown(f"### ⚡ Loading Dataset: `{dataset_name}`")
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                status_text.text("[1/3] Initializing MedMNIST loader...")
+                progress_bar.progress(33)
                 loader = load_dataset(dataset_name)
+                
+                status_text.text("[2/3] Extracting test split...")
+                progress_bar.progress(66)
                 test_images, test_labels = loader.get_numpy_data('test')
                 
+                status_text.text("[3/3] Caching in session state...")
+                progress_bar.progress(100)
                 st.session_state.original_images = test_images
                 st.session_state.original_labels = test_labels
                 st.session_state.dataset_name = dataset_name
                 st.session_state.data_loaded = True
+            
+            loading_placeholder.success(f"✓ Loaded {len(test_images)} samples | Shape: {test_images.shape}")
         
         # Load and evaluate model first
         model_manager = get_model_manager()
@@ -1045,17 +1059,43 @@ def main():
             st.error(f"❌ Model not found: {architecture} on {dataset_name}. Please train the model first.")
             st.stop()
         
-        with st.spinner(f"Loading {architecture} model..."):
+        model_placeholder = st.empty()
+        with model_placeholder.container():
+            st.markdown(f"### 🧠 Loading Model: `{architecture}`")
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            status_text.text("[1/2] Loading model weights from checkpoint...")
+            progress_bar.progress(50)
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             model = model_manager.load_pretrained(dataset_name, architecture, device=device)
             metadata_dict = model_manager.get_model_metadata(dataset_name, architecture)
+            
+            status_text.text(f"[2/2] Transferring to {device.upper()}...")
+            progress_bar.progress(100)
+        
+        model_placeholder.success(f"✓ Model ready | Device: {device.upper()} | Params: {sum(p.numel() for p in model.parameters()):,}")
         
         # Apply drift with multiple severity levels for progressive analysis
-        with st.spinner("Simulating drift..."):
+        sim_placeholder = st.empty()
+        with sim_placeholder.container():
+            st.markdown(f"### 🔬 Simulation: `{drift_type}` drift @ {drift_severity:.0%} severity")
+            st.markdown("---")
+            
             original_images = st.session_state.original_images
             original_labels = st.session_state.original_labels
             
-            # Generate drift at current severity
+            # Phase 1: Generate drift
+            with st.container():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.text("► Phase 1/3: Generating distribution shift...")
+                with col2:
+                    st.code(f"{drift_type}")
+            
+            phase1_bar = st.progress(0)
+            phase1_bar.progress(50)
+            
             drifted_images, _, metadata = st.session_state.drift_generator.simulate_gradual_drift(
                 original_images,
                 original_labels,
@@ -1064,10 +1104,13 @@ def main():
                 max_severity=drift_severity,
                 return_steps=False
             )
-            
+            phase1_bar.progress(100)
             st.session_state.drifted_images = drifted_images
+            st.text("✓ Drift transformations applied")
+            st.markdown("---")
             
-            # Evaluate model at each drift level (using full test set for accurate estimates)
+            # Phase 2: Progressive evaluation
+            st.text("► Phase 2/3: Progressive model evaluation...")
             n_eval_samples = len(original_images)  # Use entire test set
             n_steps = 10
             severity_levels = np.linspace(0, 1.0, n_steps)
@@ -1077,6 +1120,9 @@ def main():
             progressive_frames = []
             single_image = original_images[0:1]  # First image
             single_label = original_labels[0:1]
+            
+            eval_progress = st.progress(0)
+            eval_metrics = st.empty()
             
             for i, severity in enumerate(severity_levels):
                 if i == 0:
@@ -1112,6 +1158,18 @@ def main():
                     progressive_frames.append(drifted_single[0])
                     
                 accuracies.append(acc)
+                
+                # Update progress with technical metrics
+                progress_pct = (i + 1) / n_steps
+                eval_progress.progress(progress_pct)
+                eval_metrics.code(f"Severity: {severity:.2f} | Accuracy: {acc:.3f} | Step: {i+1}/{n_steps}", language="")
+            
+            eval_progress.empty()
+            eval_metrics.empty()
+            st.text(f"✓ Completed {n_steps} evaluation steps")
+            st.markdown("---")
+        
+        sim_placeholder.success(f"✓ Simulation complete | Evaluated {n_steps} severity levels | Drift type: {drift_type}")
         
         # Progressive Drift Analysis
         st.markdown("## 📉 Progressive Drift Impact")
@@ -1320,10 +1378,16 @@ def main():
         st.markdown("Statistical tests for distribution shift detection")
         st.markdown("---")
         
-        with st.spinner("Detecting drift..."):
+        detection_placeholder = st.empty()
+        with detection_placeholder.container():
+            st.markdown("### 📈 Running Statistical Tests")
+            
             # Flatten images for detection and normalize to 0-1
+            st.text("► Preprocessing: Flattening image arrays...")
+            preprocess_bar = st.progress(0)
             original_flat = original_images.reshape(len(original_images), -1).astype(np.float32) / 255.0
             drifted_flat = drifted_images.reshape(len(drifted_images), -1).astype(np.float32) / 255.0
+            preprocess_bar.progress(50)
             
             # For high-dimensional data (images), sample features to reduce noise
             # Use every 4th pixel to reduce from ~784 to ~196 features
@@ -1333,6 +1397,12 @@ def main():
                 sample_indices = np.arange(0, n_features, max(1, n_features // 200))
                 original_flat = original_flat[:, sample_indices]
                 drifted_flat = drifted_flat[:, sample_indices]
+            preprocess_bar.progress(100)
+            st.text(f"✓ Feature space: {original_flat.shape[1]} dimensions | Sample size: 500")
+            
+            st.markdown("---")
+            st.text("► Executing detection methods: PSI | KS | Chi² | MMD | Wasserstein")
+            detection_bar = st.progress(0)
             
             detector = DriftDetector()
             drift_results = detector.detect_drift(
@@ -1340,6 +1410,9 @@ def main():
                 drifted_flat[:500],
                 method='all'
             )
+            detection_bar.progress(100)
+        
+        detection_placeholder.success(f"✓ Detection complete | Methods: 5 | Test samples: 500")
         
         # Evaluate model on current drift level (already loaded model above)
         with st.spinner(f"Evaluating {architecture} at current drift level..."):
@@ -1508,7 +1581,7 @@ def main():
             )
     
     else:
-        # Show landing page before first simulation
+        # Show landing page before simulation
         display_landing_page()
 
 
