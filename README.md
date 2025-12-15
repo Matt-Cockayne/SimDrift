@@ -4,6 +4,8 @@
 
 SimDrift is a stunning, interactive platform for visualizing and understanding ML model drift in medical imaging. It features **24+ pre-trained models** across **8 medical datasets**, **real-time drift simulation** with **15+ degradation types**, and a **visual dashboard** that makes complex MLOps concepts instantly understandable. Perfect for education, research, and demonstrating production ML monitoring without needing actual production access.
 
+## 🌐 **[Try the Live Demo →](https://simdrift.streamlit.app)**
+
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
